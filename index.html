@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Mario Anthony na Galáxia</title>
 <meta name="claude:viewport-fit-sides" content="cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#07061a">
 <style>
 /* Layout: one full-screen canvas, letterboxed, with touch buttons over it on phones */
 :root{--bg:#07061a;--fg:#e9e7ff;--btn:rgba(255,255,255,.16);--btnb:rgba(255,255,255,.35);color-scheme:dark}
@@ -35,7 +39,10 @@ body.touch #tpause{display:block}
 'use strict';
 // ================= BASE =================
 const cv=document.getElementById('game'),ctx=cv.getContext('2d');
-const W=960,H=544,TS=32,ROWS=34,SECH=544;
+const H=544,TS=32,ROWS=34,SECH=544;
+// largura se adapta ao formato da tela (celular deitado fica tela cheia)
+const W=Math.round(Math.max(960,Math.min(1400,H*(innerWidth/Math.max(1,innerHeight)))));const MX=(W-960)/2;
+cv.width=W*2;cv.height=H*2;
 function fit(){const s=Math.min(innerWidth/W,innerHeight/H);cv.style.width=Math.floor(W*s)+'px';cv.style.height=Math.floor(H*s)+'px';}
 addEventListener('resize',fit);fit();
 const clamp=(v,a,b)=>v<a?a:v>b?b:v, rnd=(a,b)=>a+Math.random()*(b-a);
@@ -54,7 +61,9 @@ document.querySelectorAll('#touch button,#tpause button').forEach(b=>{const k=b.
  const on=e=>{e.preventDefault();initAudio();setKey(k,true);pressed.any=true;b.classList.add('on');};
  const off=e=>{e.preventDefault();setKey(k,false);b.classList.remove('on');};
  b.addEventListener('pointerdown',on);b.addEventListener('pointerup',off);b.addEventListener('pointercancel',off);b.addEventListener('pointerleave',off);});
-cv.addEventListener('pointerdown',e=>{initAudio();pressed.tap=true;const b=cv.getBoundingClientRect();tapPt={x:(e.clientX-b.left)*W/b.width,y:(e.clientY-b.top)*H/b.height};});
+function goFull(){const d=document.documentElement;if(!document.fullscreenElement&&d.requestFullscreen&&matchMedia('(pointer:coarse)').matches){d.requestFullscreen().catch(()=>{});try{screen.orientation.lock('landscape').catch(()=>{});}catch(_){}}}
+addEventListener('pointerdown',goFull,{once:false});
+cv.addEventListener('pointerdown',e=>{initAudio();pressed.tap=true;const b=cv.getBoundingClientRect();tapPt={x:(e.clientX-b.left)*W/b.width-MX,y:(e.clientY-b.top)*H/b.height};});
 
 // ================= AUDIO (original chiptune) =================
 let AC=null,master=null,muted=false;
@@ -276,6 +285,7 @@ function updateMap(){if(mapHop>0)mapHop--;
  if(tapPt){const p=tapPt;tapPt=null;for(let i=0;i<4;i++){const n=NODES[i];if(Math.hypot(p.x-n[0],p.y-n[1])<60){if(i>=unlocked){SFX.nope();break;}if(i===mapSel){enterLevel(i);return;}mapSel=i;mapHop=14;SFX.jump();break;}}}
  if(pressed.start||pressed.jump||pressed.action){enterLevel(mapSel);}}
 function drawMap(){
+ ctx.fillStyle='#120a3a';ctx.fillRect(0,0,W,H);if(sprOK('map'))ctx.drawImage(SPR.map,0,0,W,H);ctx.fillStyle='rgba(7,6,26,.72)';ctx.fillRect(0,0,W,H);ctx.save();ctx.translate(MX,0);const W0=W;{const W=960;
  if(sprOK('map'))ctx.drawImage(SPR.map,0,0,W,H);else{ctx.fillStyle='#120a3a';ctx.fillRect(0,0,W,H);}
  // caminho
  ctx.lineWidth=6;ctx.lineCap='round';for(let i=0;i<4;i++){const a=NODES[i],b=NODES[i+1];ctx.strokeStyle=i<unlocked-1?'rgba(255,230,120,.95)':'rgba(255,255,255,.35)';ctx.setLineDash([2,14]);ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();}ctx.setLineDash([]);
@@ -293,12 +303,12 @@ function drawMap(){
  txt('Fase '+(mapSel+1)+' · '+LVNAMES[mapSel],W-20,22,20,'#cfe7ff','right');
  ctx.fillStyle='rgba(8,6,28,.72)';ctx.fillRect(0,H-46,W,46);
  txt('◀ ▶ escolher fase   ·   ENTER / ESPAÇO jogar   ·   toque na fase para escolher, toque de novo para jogar',W/2,H-23,14,'#dcdcff','center');
- txt('Salve a Princesa Estela do Bauser o Gigante!',W/2,66,18,'#ffb8e8','center');}
+ txt('Salve a Princesa Estela do Bauser o Gigante!',W/2,66,18,'#ffb8e8','center');}ctx.restore();}
 
 function toIntro(){state='intro';stateT=0;stopSong();}
 
 // ================= CAMERA =================
-function camTarget(){if(lock!==null&&P.sec===0)return lock;let tx=P.x+P.w/2-W*.42,lo=0,hi=lvl.w*TS-W;
+function camTarget(){if(lock!==null&&P.sec===0)return Math.min(lock,lvl.w*TS-W);let tx=P.x+P.w/2-W*.42,lo=0,hi=lvl.w*TS-W;
  if(P.sec===1){const c=(P.x/TS)|0;for(const q of lvl.caves)if(c>=q.x0&&c<=q.x1){lo=q.x0*TS;hi=Math.max(lo,(q.x1+1)*TS-W);}}
  return clamp(tx,lo,hi);}
 function snapCam(){cam.x=camTarget();cam.y=P.sec*SECH;}
